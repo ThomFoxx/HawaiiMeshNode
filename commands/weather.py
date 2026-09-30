@@ -23,6 +23,11 @@ def show_weather(arguments):
 
     if region_name is None:
         print(f"Weather region not found: {region}")
+        print("Supported regions:")
+
+        for code, name in WEATHER_REGIONS.items():
+            print(f"  {code:<7} - {name}")
+
         return
 
     print(f"{region_name} weather: placeholder data.")
