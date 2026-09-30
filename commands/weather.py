@@ -8,6 +8,12 @@ WEATHER_REGIONS = {
 
 def show_weather(arguments):
     if len(arguments) == 0:
+        print("Weather regions:")
+
+        for code, name in WEATHER_REGIONS.items():
+            print(f"  {code:<7} - {name}")
+
+        print()
         print("Usage: WX <region>")
         return
 
