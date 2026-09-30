@@ -1,8 +1,11 @@
+from models.region import Region
+
+
 WEATHER_REGIONS = {
-    "OAHU": "Oahu",
-    "MAUI": "Maui",
-    "KAUAI": "Kauai",
-    "HAWAII": "Hawaii Island",
+    "OAHU": Region("OAHU", "Oahu"),
+    "MAUI": Region("MAUI", "Maui"),
+    "KAUAI": Region("KAUAI", "Kauai"),
+    "HAWAII": Region("HAWAII", "Hawaii Island"),
 }
 
 
@@ -10,24 +13,23 @@ def show_weather(arguments):
     if len(arguments) == 0:
         print("Weather regions:")
 
-        for code, name in WEATHER_REGIONS.items():
-            print(f"  {code:<7} - {name}")
+        for region in WEATHER_REGIONS.values():
+            print(f"  {region.code:<7} - {region.name}")
 
         print()
         print("Usage: WX <region>")
         return
 
-    region = arguments[0]
+    region_code = arguments[0]
+    region = WEATHER_REGIONS.get(region_code)
 
-    region_name = WEATHER_REGIONS.get(region)
-
-    if region_name is None:
-        print(f"Weather region not found: {region}")
+    if region is None:
+        print(f"Weather region not found: {region_code}")
         print("Supported regions:")
 
-        for code, name in WEATHER_REGIONS.items():
-            print(f"  {code:<7} - {name}")
+        for supported_region in WEATHER_REGIONS.values():
+            print(f"  {supported_region.code:<7} - {supported_region.name}")
 
         return
 
-    print(f"{region_name} weather: placeholder data.")
+    print(f"{region.name} weather: placeholder data.")
