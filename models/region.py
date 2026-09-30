@@ -5,3 +5,4 @@ from dataclasses import dataclass
 class Region:
     code: str
     name: str
+    aliases: tuple[str, ...] = ()
