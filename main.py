@@ -1,30 +1,10 @@
-def show_help(arguments):
-    print("Available commands:")
-    print("  HELP    - Show available commands")
-    print("  STATUS  - Show node status")
-    print("  WX <area>  - Show weather for an area")
-    print("  QUIT    - Exit the program")
-
-
-def show_status(arguments):
-    print("HawaiiMeshNode is online.")
-
+from commands.help import show_help
+from commands.status import show_status
+from commands.weather import show_weather
 
 def quit_program(arguments):
     print("Goodbye.")
     return False
-
-def show_weather(arguments):
-    if len(arguments) == 0:
-        print("Usage: WX <region>")
-        return
-
-    region = arguments[0]
-
-    if region == "OAHU":
-        print("Oahu weather: placeholder data.")
-    else:
-        print(f"Weather region not found: {region}")
 
 def run_command(command_line):
     commands = {
