@@ -4,6 +4,7 @@ from data.zip_request_repository import ZipRequestRepository
 from services.zip_location_service import ZipLocationService
 from zoneinfo import ZoneInfo
 from services.nws_weather_service import NwsWeatherService
+from services.cached_weather_service import CachedWeatherService
 
 
 WEATHER_REGIONS = {
@@ -34,6 +35,7 @@ zip_request_repository = ZipRequestRepository()
 zip_request_repository.initialize()
 zip_location_service = ZipLocationService()
 nws_weather_service = NwsWeatherService()
+cached_weather_service = CachedWeatherService()
 
 
 def find_region(region_code):
@@ -132,9 +134,12 @@ def show_zip_weather(arguments):
         mode = arguments[1]
 
     if mode == "CURRENT":
+        cache_key = f"CURRENT:ZIP:{zip_code}"
+
         conditions = (
-            nws_weather_service.get_current_conditions(
-                location
+            cached_weather_service.get_current_conditions(
+                location,
+                cache_key,
             )
         )
 
@@ -146,9 +151,14 @@ def show_zip_weather(arguments):
         )
 
     elif mode == "FORECAST":
-        forecast = nws_weather_service.get_forecast(
-            location,
-            zip_code,
+        cache_key = f"FORECAST:ZIP:{zip_code}"
+
+        forecast = (
+            cached_weather_service.get_forecast(
+                location,
+                zip_code,
+                cache_key,
+            )
         )
 
         print(
