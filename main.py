@@ -1,6 +1,7 @@
 from commands.help import show_help
 from commands.status import show_status
 from commands.weather import show_weather
+from commands.admin import show_popular_zips
 
 def quit_program(arguments):
     print("Goodbye.")
@@ -8,10 +9,11 @@ def quit_program(arguments):
 
 def run_command(command_line):
     commands = {
-        "HELP": show_help,
-        "STATUS": show_status,
-        "WX": show_weather,
-        "QUIT": quit_program,
+    "HELP": show_help,
+    "STATUS": show_status,
+    "WX": show_weather,
+    "ZIPS": show_popular_zips,
+    "QUIT": quit_program,
     }
 
     parts = command_line.split()
