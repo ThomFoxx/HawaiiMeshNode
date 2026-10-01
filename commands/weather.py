@@ -1,5 +1,7 @@
 from models.region import Region
+from services.weather_service import WeatherService
 
+weather_service = WeatherService()
 
 WEATHER_REGIONS = {
     "OAHU": Region(
@@ -63,4 +65,6 @@ def show_weather(arguments):
 
         return
 
-    print(f"{region.name} weather: placeholder data.")
+    report = weather_service.get_weather(region)
+
+    print(f"{report.region_name} weather: {report.summary}")
