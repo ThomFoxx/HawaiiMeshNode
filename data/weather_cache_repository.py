@@ -84,3 +84,15 @@ class WeatherCacheRepository:
             retrieved_at=datetime.fromisoformat(row[4]),
             expires_at=datetime.fromisoformat(row[5]),
         )
+
+    def delete_older_than(self, cutoff):
+        with sqlite3.connect(self.db_path) as connection:
+            cursor = connection.execute(
+                """
+                DELETE FROM weather_cache
+                WHERE retrieved_at < ?
+                """,
+                (cutoff.isoformat(),),
+            )
+
+            return cursor.rowcount

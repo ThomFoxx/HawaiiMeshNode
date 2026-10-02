@@ -5,4 +5,5 @@ from dataclasses import dataclass
 class Region:
     code: str
     name: str
+    weather_zip: str
     aliases: tuple[str, ...] = ()

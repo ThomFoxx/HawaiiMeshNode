@@ -1,54 +1,21 @@
-from models.region import Region
-from services.weather_service import WeatherService
+import requests
+
 from data.zip_request_repository import ZipRequestRepository
 from services.zip_location_service import ZipLocationService
 from zoneinfo import ZoneInfo
-from services.nws_weather_service import NwsWeatherService
 from services.cached_weather_service import CachedWeatherService
 
-
-WEATHER_REGIONS = {
-    "OAHU": Region(
-        "OAHU",
-        "Oahu",
-        ("OʻAHU", "O'AHU"),
-    ),
-    "MAUI": Region(
-        "MAUI",
-        "Maui",
-    ),
-    "KAUAI": Region(
-        "KAUAI",
-        "Kauai",
-        ("KAUAʻI", "KAUA'I"),
-    ),
-    "HAWAII": Region(
-        "HAWAII",
-        "Hawaii Island",
-        ("BIGISLAND", "BIG-ISLAND"),
-    ),
-}
+from data.weather_regions import (
+    WEATHER_REGIONS,
+    find_region,
+)
 
 
-weather_service = WeatherService()
 zip_request_repository = ZipRequestRepository()
 zip_request_repository.initialize()
 zip_location_service = ZipLocationService()
-nws_weather_service = NwsWeatherService()
 cached_weather_service = CachedWeatherService()
 
-
-def find_region(region_code):
-    region = WEATHER_REGIONS.get(region_code)
-
-    if region is not None:
-        return region
-
-    for candidate in WEATHER_REGIONS.values():
-        if region_code in candidate.aliases:
-            return candidate
-
-    return None
 
 def show_weather(arguments):
     if len(arguments) == 0:
@@ -70,19 +37,13 @@ def show_weather(arguments):
     mode = "CURRENT"
 
     if len(arguments) > 1:
-        mode = arguments[1]
+        mode = arguments[1].upper()
 
-    if mode == "CURRENT":
-        report = weather_service.get_current_conditions(region)
-    elif mode == "FORECAST":
-        report = weather_service.get_forecast(region)
-    else:
-        print(f"Unknown weather mode: {mode}")
-        print("Available modes: CURRENT, FORECAST")
-        return
-
-    print(f"{report.region_name} weather: {report.summary}")
-
+    show_region_weather(
+        region,
+        mode,
+    )
+    
 def show_weather_help():
     print("Weather regions:")
     show_supported_regions()
@@ -131,48 +92,165 @@ def show_zip_weather(arguments):
     mode = "CURRENT"
 
     if len(arguments) > 1:
-        mode = arguments[1]
+        mode = arguments[1].upper()
 
     if mode == "CURRENT":
         cache_key = f"CURRENT:ZIP:{zip_code}"
 
-        conditions = (
-            cached_weather_service.get_current_conditions(
-                location,
-                cache_key,
+        try:
+            result = (
+                cached_weather_service
+                .get_current_conditions(
+                    location,
+                    cache_key,
+                )
             )
+
+        except (
+            requests.RequestException,
+            RuntimeError,
+        ):
+            print(
+                f"Weather unavailable for ZIP "
+                f"{zip_code}."
+            )
+            return
+
+        conditions = result.data
+
+        text = format_current_conditions(
+            f"ZIP {zip_code}",
+            conditions,
         )
 
-        print(
-            format_current_conditions(
-                zip_code,
-                conditions,
-            )
-        )
+        if result.is_stale:
+            text = f"STALE {text}"
+
+        print(text)
 
     elif mode == "FORECAST":
         cache_key = f"FORECAST:ZIP:{zip_code}"
 
-        forecast = (
-            cached_weather_service.get_forecast(
-                location,
-                zip_code,
-                cache_key,
+        try:
+            result = (
+                cached_weather_service.get_forecast(
+                    location,
+                    zip_code,
+                    cache_key,
+                )
             )
+
+        except (
+            requests.RequestException,
+            RuntimeError,
+        ):
+            print(
+                f"Weather unavailable for ZIP "
+                f"{zip_code}."
+            )
+            return
+
+        forecast = result.data
+
+        text = format_forecast(
+            f"ZIP {zip_code}",
+            forecast,
         )
 
-        print(
-            format_forecast(
-                zip_code,
-                forecast,
-            )
-        )
+        if result.is_stale:
+            text = f"STALE {text}"
+
+        print(text)
 
     else:
         print(f"Unknown weather mode: {mode}")
         print("Available modes: CURRENT, FORECAST")
 
-def format_current_conditions(zip_code, conditions):
+def show_region_weather(region, mode):
+    location = zip_location_service.find(
+        region.weather_zip
+    )
+
+    if location is None:
+        print(
+            f"Weather location unavailable for "
+            f"{region.name}."
+        )
+        return
+
+    if mode == "CURRENT":
+        cache_key = (
+            f"CURRENT:REGION:{region.code}"
+        )
+
+        try:
+            result = (
+                cached_weather_service
+                .get_current_conditions(
+                    location,
+                    cache_key,
+                )
+            )
+
+        except (
+            requests.RequestException,
+            RuntimeError,
+        ):
+            print(
+                f"Weather unavailable for "
+                f"{region.name}."
+            )
+            return
+
+        text = format_current_conditions(
+            region.name,
+            result.data,
+        )
+
+        if result.is_stale:
+            text = f"STALE {text}"
+
+        print(text)
+
+    elif mode == "FORECAST":
+        cache_key = (
+            f"FORECAST:REGION:{region.code}"
+        )
+
+        try:
+            result = (
+                cached_weather_service.get_forecast(
+                    location,
+                    region.code,
+                    cache_key,
+                )
+            )
+
+        except (
+            requests.RequestException,
+            RuntimeError,
+        ):
+            print(
+                f"Weather unavailable for "
+                f"{region.name}."
+            )
+            return
+
+        text = format_forecast(
+            region.name,
+            result.data,
+        )
+
+        if result.is_stale:
+            text = f"STALE {text}"
+
+        print(text)
+
+    else:
+        print(f"Unknown weather mode: {mode}")
+        print("Available modes: CURRENT, FORECAST")
+
+def format_current_conditions(label, conditions):
     local_time = conditions.observed_at.astimezone(
         ZoneInfo(conditions.time_zone)
     )
@@ -182,8 +260,9 @@ def format_current_conditions(zip_code, conditions):
     ).lstrip("0")
 
     parts = [
-        f"ZIP {zip_code}:",
-        conditions.description or "Conditions unavailable",
+        f"{label}:",
+        conditions.description
+        or "Conditions unavailable",
     ]
 
     if conditions.temperature_f is not None:
@@ -208,7 +287,7 @@ def format_current_conditions(zip_code, conditions):
 
     return " ".join(parts)
 
-def format_forecast(zip_code, forecast):
+def format_forecast(label, forecast):
     local_time = forecast.generated_at.astimezone(
         ZoneInfo(forecast.time_zone)
     )
@@ -218,7 +297,7 @@ def format_forecast(zip_code, forecast):
     ).lstrip("0")
 
     parts = [
-        f"ZIP {zip_code}:",
+        f"{label}:",
         forecast.period_name,
     ]
 

@@ -73,3 +73,23 @@ class ZipRequestRepository:
             ).fetchall()
 
         return rows
+
+    def get_recently_requested(self, cutoff, limit=5):
+        with sqlite3.connect(self.db_path) as connection:
+            rows = connection.execute(
+                """
+                SELECT zip_code
+                FROM zip_requests
+                WHERE last_requested >= ?
+                ORDER BY
+                    request_count DESC,
+                    last_requested DESC
+                LIMIT ?
+                """,
+                (
+                    cutoff.isoformat(),
+                    limit,
+                ),
+            ).fetchall()
+
+        return [row[0] for row in rows]

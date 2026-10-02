@@ -2,6 +2,7 @@ from commands.help import show_help
 from commands.status import show_status
 from commands.weather import show_weather
 from commands.admin import show_popular_zips
+from services.weather_refresh_service import WeatherRefreshService
 
 def quit_program(arguments):
     print("Goodbye.")
@@ -34,6 +35,8 @@ def run_command(command_line):
 
     return True
 
+weather_refresh_service = WeatherRefreshService()
+weather_refresh_service.start()
 
 def main():
     print("HawaiiMeshNode Development Console")

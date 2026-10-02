@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-
+from dataclasses import replace
 from data.weather_cache_repository import WeatherCacheRepository
 from models.current_conditions import CurrentConditions
 from models.weather_cache_entry import WeatherCacheEntry
@@ -170,3 +170,93 @@ def test_save_and_get_forecast(tmp_path):
     assert loaded.temperature == 87
     assert loaded.precipitation_chance == 63
     assert loaded.generated_at == forecast.generated_at
+
+def test_expired_current_can_be_loaded_as_stale(tmp_path):
+    repository = WeatherCacheRepository(
+        tmp_path / "test.db"
+    )
+
+    service = WeatherCacheService(repository)
+
+    now = datetime.now(timezone.utc)
+
+    conditions = replace(
+        make_conditions(),
+        observed_at=now - timedelta(hours=1),
+    )
+
+    service.save_current(
+        "CURRENT:ZIP:96814",
+        conditions,
+    )
+
+    entry = repository.get(
+        "CURRENT:ZIP:96814"
+    )
+
+    expired_entry = WeatherCacheEntry(
+        cache_key=entry.cache_key,
+        data_type=entry.data_type,
+        payload=entry.payload,
+        source_time=entry.source_time,
+        retrieved_at=now - timedelta(hours=1),
+        expires_at=now - timedelta(minutes=1),
+    )
+
+    repository.save(expired_entry)
+
+    fresh = service.get_current(
+        "CURRENT:ZIP:96814"
+    )
+
+    stale = service.get_current_stale(
+        "CURRENT:ZIP:96814"
+    )
+
+    assert fresh is None
+    assert stale is not None
+    assert stale.station_id == "PHNL"
+    assert stale.temperature_f == 77.0
+
+def test_cleanup_removes_old_cache_entries(tmp_path):
+    repository = WeatherCacheRepository(
+        tmp_path / "test.db"
+    )
+
+    service = WeatherCacheService(repository)
+
+    now = datetime.now(timezone.utc)
+
+    old_entry = WeatherCacheEntry(
+        cache_key="CURRENT:ZIP:11111",
+        data_type="CURRENT",
+        payload="{}",
+        source_time=now - timedelta(days=10),
+        retrieved_at=now - timedelta(days=10),
+        expires_at=now - timedelta(days=10),
+    )
+
+    recent_entry = WeatherCacheEntry(
+        cache_key="CURRENT:ZIP:22222",
+        data_type="CURRENT",
+        payload="{}",
+        source_time=now,
+        retrieved_at=now,
+        expires_at=now + timedelta(minutes=10),
+    )
+
+    repository.save(old_entry)
+    repository.save(recent_entry)
+
+    deleted = service.cleanup()
+
+    assert deleted == 1
+
+    assert repository.get(
+        "CURRENT:ZIP:11111"
+    ) is None
+
+    assert repository.get(
+        "CURRENT:ZIP:22222"
+    ) is not None
+

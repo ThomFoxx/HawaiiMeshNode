@@ -1,6 +1,8 @@
+import requests
+
 from services.nws_weather_service import NwsWeatherService
 from services.weather_cache_service import WeatherCacheService
-
+from models.weather_result import WeatherResult
 
 class CachedWeatherService:
     def __init__(
@@ -30,19 +32,39 @@ class CachedWeatherService:
         )
 
         if cached is not None:
-            return cached
+            return WeatherResult(
+                data=cached,
+                is_stale=False,
+            )
 
-        conditions = (
-            self.nws_weather_service
-            .get_current_conditions(location)
-        )
+        try:
+            conditions = (
+                self.nws_weather_service
+                .get_current_conditions(location)
+            )
 
-        self.cache_service.save_current(
-            cache_key,
-            conditions,
-        )
+            self.cache_service.save_current(
+                cache_key,
+                conditions,
+            )
 
-        return conditions
+            return WeatherResult(
+                data=conditions,
+                is_stale=False,
+            )
+
+        except (requests.RequestException, RuntimeError):
+            stale = self.cache_service.get_current_stale(
+                cache_key
+            )
+
+            if stale is None:
+                raise
+
+            return WeatherResult(
+                data=stale,
+                is_stale=True,
+            )
 
     def get_forecast(
         self,
@@ -55,18 +77,38 @@ class CachedWeatherService:
         )
 
         if cached is not None:
-            return cached
-
-        forecast = (
-            self.nws_weather_service.get_forecast(
-                location,
-                region_code,
+            return WeatherResult(
+                data=cached,
+                is_stale=False,
             )
-        )
 
-        self.cache_service.save_forecast(
-            cache_key,
-            forecast,
-        )
+        try:
+            forecast = (
+                self.nws_weather_service.get_forecast(
+                    location,
+                    region_code,
+                )
+            )
 
-        return forecast
+            self.cache_service.save_forecast(
+                cache_key,
+                forecast,
+            )
+
+            return WeatherResult(
+                data=forecast,
+                is_stale=False,
+            )
+
+        except (requests.RequestException, RuntimeError):
+            stale = self.cache_service.get_forecast_stale(
+                cache_key
+            )
+
+            if stale is None:
+                raise
+
+            return WeatherResult(
+                data=stale,
+                is_stale=True,
+            )

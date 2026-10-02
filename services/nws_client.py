@@ -1,7 +1,11 @@
+import os
 import requests
 
 
-BASE_URL = "https://api.weather.gov"
+BASE_URL = os.environ.get(
+    "NWS_BASE_URL",
+    "https://api.weather.gov",
+)
 
 HEADERS = {
     "User-Agent": "HawaiiMeshNode/0.1",
